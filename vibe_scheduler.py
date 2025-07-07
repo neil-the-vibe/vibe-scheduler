@@ -7,13 +7,10 @@ import urllib.parse
 import numpy as np
 import streamlit as st
 from PIL import Image
-import pytesseract
+import easyocr
 import dateparser
 from streamlit_paste_button import paste_image_button
 from icalendar import Calendar, Event
-
-# === Configuration ===
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 # — Authentication —
 PASSWORD = "vibing"
@@ -75,8 +72,10 @@ def extract_events(text):
         events.append({"title": title, "date": d, "start_time": start_time, "end_time": end_time})
     return events
 
-# --- Main App Flow ---
+# --- Initialize OCR reader once ---
+reader = easyocr.Reader(['en'], gpu=False)
 
+# --- Main App Flow ---
 # 1. Paste image
 paste_res = paste_image_button("📋 Paste image")
 data = getattr(paste_res, 'image_data', None)
@@ -95,13 +94,16 @@ else:
     st.error(f"Unsupported paste data type: {type(data)}")
     st.stop()
 
-# 3. Display & OCR
+# 3. Display image
 st.image(image, caption="📋 Pasted Image", use_container_width=True)
-raw_text = pytesseract.image_to_string(image)
+
+# 4. OCR with EasyOCR
+result = reader.readtext(np.array(image))
+raw_text = "\n".join([item[1] for item in result])
 st.subheader("📝 Extracted Text")
 st.write(raw_text)
 
-# 4. Extract events
+# 5. Extract events
 events = extract_events(raw_text)
 st.subheader("🗓️ Extracted Events (editable)")
 
